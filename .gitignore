@@ -1,0 +1,6 @@
+# Logs
+logs/
+*.log
+
+# Windows Service files (generated)
+nssm.exe
