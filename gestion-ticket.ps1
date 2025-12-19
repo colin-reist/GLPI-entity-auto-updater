@@ -1,7 +1,7 @@
 ﻿# ========================
 # CONFIGURATION
 # ========================
-$Base = "https://support.edu.jura.ch/apirest.php"
+$Base = "https://glpi.com/apirest.php"
 $App = "TOKEN_APP"
 $User = "TOKEN_USER"
 # ========================
