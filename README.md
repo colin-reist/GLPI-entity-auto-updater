@@ -1,210 +1,165 @@
-# Service Windows - GLPI Ticket Bot
+# 🎫 GLPI Entity Auto-Updater
 
-Ce document explique comment installer le script `gestion-ticket.ps1` en tant que **service Windows** qui s'exécutera automatiquement au démarrage de la machine.
+<div align="center">
 
-## 📋 Prérequis
+**Service Windows automatisé pour maintenir la cohérence des entités GLPI**
 
-1. **Télécharger NSSM** (Non-Sucking Service Manager)
-   - Télécharger depuis : [https://nssm.cc/release/nssm-2.24.zip](https://nssm.cc/release/nssm-2.24.zip)
-   - Extraire le fichier `nssm.exe` (version win64) dans `C:\Tools\nssm.exe`
-   - ⚠️ Le dossier `C:\Tools` doit exister (créez-le si nécessaire)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![GLPI](https://img.shields.io/badge/GLPI-API%20REST-orange.svg)](https://github.com/glpi-project/glpi)
 
-2. **Privilèges Administrateur**
-   - L'installation nécessite PowerShell en mode Administrateur
+[Fonctionnalités](#-fonctionnalités) • [Installation](#-installation-rapide) • [Wiki](../../wiki) • [Contribution](#-contribution)
+
+</div>
 
 ---
 
-## 🚀 Installation Automatique (Recommandé)
+## 📖 À propos
 
-Le projet inclut un script d'installation automatisé qui configure tout pour vous.
+**GLPI Entity Auto-Updater** est un service Windows qui surveille automatiquement les tickets GLPI et corrige leur entité (`entities_id`) en fonction de leur localisation (`locations_id`). 
 
-### Étapes :
+### 🎯 Problème résolu
 
-1. **Ouvrir PowerShell en Administrateur**
-   - Clic droit sur PowerShell → "Exécuter en tant qu'administrateur"
+Dans GLPI, lorsqu'un ticket est créé avec une localisation spécifique, l'entité associée n'est pas toujours correctement assignée. Ce service résout ce problème en :
+- Surveillant continuellement les tickets récemment modifiés
+- Détectant les incohérences entre l'entité du ticket et l'entité de sa localisation
+- Corrigeant automatiquement l'entité du ticket
 
-2. **Naviguer vers le dossier du projet**
+---
+
+## ✨ Fonctionnalités
+
+- 🔄 **Surveillance continue** : Vérifie les tickets toutes les 5 secondes
+- 🎯 **Correction automatique** : Met à jour l'entité selon la localisation
+- 📝 **Logging complet** : Journalisation de toutes les actions et erreurs
+- 🚀 **Démarrage automatique** : S'exécute comme service Windows au boot
+- 🛡️ **Gestion d'erreurs robuste** : Redémarrage automatique en cas de problème
+- ⚙️ **Installation automatisée** : Scripts d'installation/désinstallation inclus
+
+---
+
+## 🚀 Installation rapide
+
+### Prérequis
+
+- Windows 10/11 ou Windows Server
+- PowerShell 5.1 ou supérieur
+- [NSSM](https://nssm.cc/) (Non-Sucking Service Manager)
+- Droits administrateur
+- Accès à l'API REST GLPI avec token utilisateur et application
+
+### Installation en 3 étapes
+
+1. **Télécharger NSSM** et placer `nssm.exe` dans `C:\Tools\`
+
+2. **Cloner ou télécharger ce repository**
    ```powershell
-   cd "C:\Users\reist\Documents\GitHub\WebHook-GLPI"
+   git clone https://github.com/votre-username/GLPI-entity-auto-updater.git
+   cd GLPI-entity-auto-updater
    ```
 
-3. **Exécuter le script d'installation**
+3. **Configurer et installer** (en tant qu'Administrateur)
    ```powershell
+   # Éditer gestion-ticket.ps1 pour ajouter vos tokens API GLPI
+   # Puis installer le service :
    .\install-service.ps1
    ```
 
-Le script va automatiquement :
-- ✅ Vérifier les prérequis (NSSM, droits admin, etc.)
-- ✅ Créer un dossier `logs` pour les fichiers de log
-- ✅ Configurer le service avec démarrage automatique
-- ✅ Configurer la rotation des logs
-- ✅ Configurer le redémarrage automatique en cas d'erreur
-- ✅ Démarrer le service
+> 📚 **Documentation détaillée** : Consultez le [Wiki](../../wiki) pour :
+> - Guide d'installation pas à pas
+> - Configuration avancée
+> - Gestion du service
+> - Dépannage complet
+> - Structure de l'API GLPI
 
 ---
 
-## 🔧 Installation Manuelle (Alternative)
+## 🔧 Configuration
 
-Si vous préférez installer manuellement avec NSSM :
+Avant la première utilisation, éditez `gestion-ticket.ps1` pour configurer vos accès API :
 
-### 1. Installer le service
-Ouvrir PowerShell en **Administrateur** :
 ```powershell
-C:\Tools\nssm.exe install GLPI_Ticket_Bot
+$Base = "https://votre-instance-glpi.com/apirest.php"
+$App = "votre_app_token"
+$User = "votre_user_token"
 ```
 
-### 2. Configurer dans la fenêtre NSSM
-
-**Onglet Application :**
-- **Path**: `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
-- **Startup directory**: `C:\Users\reist\Documents\GitHub\WebHook-GLPI`
-- **Arguments**: `-ExecutionPolicy Bypass -NoProfile -File "C:\Users\reist\Documents\GitHub\WebHook-GLPI\gestion-ticket.ps1"`
-
-**Onglet Details :**
-- **Display name**: `Bot GLPI Ticket Fix`
-- **Description**: `Surveille et corrige l'entité des tickets GLPI selon leur lieu.`
-- **Startup type**: `Automatic`
-
-**Onglet I/O (Logs) :**
-- **Output (stdout)**: `C:\Users\reist\Documents\GitHub\WebHook-GLPI\logs\service-output.log`
-- **Error (stderr)**: `C:\Users\reist\Documents\GitHub\WebHook-GLPI\logs\service-error.log`
-
-**Onglet Exit actions :**
-- **Restart application**: Cocher pour redémarrage automatique
-- **Delay restart by**: `5000` ms
-
-Cliquer sur **Install service**.
-
-### 3. Démarrer le service
-```powershell
-Start-Service GLPI_Ticket_Bot
-```
+> ⚠️ **Sécurité** : Ne commitez jamais vos tokens dans le dépôt Git !
 
 ---
 
-## 📊 Gestion du Service
+## 📊 Utilisation
 
-### Commandes PowerShell
+Une fois installé, le service fonctionne automatiquement en arrière-plan.
+
+### Commandes de gestion
 
 ```powershell
 # Vérifier le statut
 Get-Service GLPI_Ticket_Bot
 
-# Démarrer le service
+# Démarrer/Arrêter/Redémarrer
 Start-Service GLPI_Ticket_Bot
-
-# Arrêter le service
 Stop-Service GLPI_Ticket_Bot
-
-# Redémarrer le service
 Restart-Service GLPI_Ticket_Bot
 
-# Voir les détails
-Get-Service GLPI_Ticket_Bot | Format-List *
+# Consulter les logs en temps réel
+Get-Content .\logs\service-output.log -Wait -Tail 20
 ```
 
 ### Désinstallation
 
-**Option 1 - Script automatique :**
 ```powershell
 .\uninstall-service.ps1
 ```
 
-**Option 2 - Manuel :**
-```powershell
-# Arrêter le service
-C:\Tools\nssm.exe stop GLPI_Ticket_Bot
+---
 
-# Désinstaller
-C:\Tools\nssm.exe remove GLPI_Ticket_Bot confirm
+## 📁 Structure du projet
+
+```
+GLPI-entity-auto-updater/
+├── gestion-ticket.ps1       # Script principal de surveillance
+├── install-service.ps1      # Installation automatique du service
+├── uninstall-service.ps1    # Désinstallation du service
+├── check-service.ps1        # Vérification rapide du statut
+├── README.md                # Ce fichier
+├── .gitignore
+└── logs/                    # Logs du service (créé automatiquement)
+    ├── service-output.log
+    └── service-error.log
 ```
 
 ---
 
-## 📁 Fichiers de Logs
+## 🤝 Contribution
 
-Les logs sont automatiquement écrits dans le dossier `logs/` :
+Les contributions sont les bienvenues ! N'hésitez pas à :
 
-- **`logs/service-output.log`** : Sortie standard (logs normaux du script)
-- **`logs/service-error.log`** : Erreurs
-
-### Visualiser les logs en temps réel
-```powershell
-# Logs normaux
-Get-Content .\logs\service-output.log -Wait -Tail 20
-
-# Logs d'erreurs
-Get-Content .\logs\service-error.log -Wait -Tail 20
-```
+- 🐛 Signaler des bugs
+- 💡 Proposer de nouvelles fonctionnalités
+- 🔧 Soumettre des pull requests
+- 📖 Améliorer la documentation
 
 ---
 
-## 🔄 Redémarrage Automatique
+## 📝 License
 
-Le service est configuré pour :
-- ✅ Démarrer automatiquement au démarrage de Windows
-- ✅ Redémarrer automatiquement en cas d'erreur (après 5 secondes)
-- ✅ Se fermer proprement lors de l'arrêt de Windows
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ---
 
-## ⚠️ Dépannage
+## 🙏 Remerciements
 
-### Le service ne démarre pas
-1. Vérifiez les logs dans `logs/service-error.log`
-2. Testez le script manuellement :
-   ```powershell
-   .\gestion-ticket.ps1
-   ```
-3. Vérifiez les identifiants API dans le script
-
-### Le service démarre mais s'arrête immédiatement
-- Vérifiez que la connexion à l'API GLPI fonctionne
-- Vérifiez que `$App` et `$User` dans `gestion-ticket.ps1` sont corrects
-
-### Logs trop volumineux
-Les logs s'accumulent dans les fichiers. Pour nettoyer :
-```powershell
-# Vider les logs
-Clear-Content .\logs\service-output.log
-Clear-Content .\logs\service-error.log
-```
+- [GLPI Project](https://glpi-project.org/) pour l'excellent système de gestion d'assistance
+- [NSSM](https://nssm.cc/) pour la gestion simple des services Windows
 
 ---
 
-## 📝 Structure des Fichiers
+<div align="center">
 
-```
-WebHook-GLPI/
-├── gestion-ticket.ps1      # Script principal
-├── install-service.ps1     # Installation automatique
-├── uninstall-service.ps1   # Désinstallation
-├── README_SERVICE.md       # Ce fichier
-└── logs/                   # Créé automatiquement
-    ├── service-output.log  # Logs de sortie
-    └── service-error.log   # Logs d'erreurs
-```
+**Fait avec ❤️ pour simplifier la gestion GLPI**
 
----
+[⬆ Retour en haut](#-glpi-entity-auto-updater)
 
-## ✅ Vérification de l'Installation
-
-Après installation, vérifiez que tout fonctionne :
-
-1. **Vérifier le statut du service**
-   ```powershell
-   Get-Service GLPI_Ticket_Bot
-   ```
-   → Devrait afficher : `Status : Running`
-
-2. **Vérifier les logs**
-   ```powershell
-   Get-Content .\logs\service-output.log -Tail 10
-   ```
-   → Devrait afficher les messages de démarrage et de surveillance
-
-3. **Tester le redémarrage**
-   ```powershell
-   Restart-Computer
-   ```
-   → Après le redémarrage, le service devrait être automatiquement en cours d'exécution
+</div>
