@@ -2,8 +2,8 @@
 # CONFIGURATION
 # ========================
 $Base = "https://support.edu.jura.ch/apirest.php"
-$App = "enpPlsELKgxcROGZYtf44ehIx1HJH8T9UBU6dhp7"
-$User = "IKnr3ivglWmveMgWGli21s8IXbMDAEKoQLz1rkeV"
+$App = "TOKEN_APP"
+$User = "TOKEN_USER"
 # ========================
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
