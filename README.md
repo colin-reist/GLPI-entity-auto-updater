@@ -129,37 +129,3 @@ GLPI-entity-auto-updater/
     ├── service-output.log
     └── service-error.log
 ```
-
----
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! N'hésitez pas à :
-
-- 🐛 Signaler des bugs
-- 💡 Proposer de nouvelles fonctionnalités
-- 🔧 Soumettre des pull requests
-- 📖 Améliorer la documentation
-
----
-
-## 📝 License
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
----
-
-## 🙏 Remerciements
-
-- [GLPI Project](https://glpi-project.org/) pour l'excellent système de gestion d'assistance
-- [NSSM](https://nssm.cc/) pour la gestion simple des services Windows
-
----
-
-<div align="center">
-
-**Fait avec ❤️ pour simplifier la gestion GLPI**
-
-[⬆ Retour en haut](#-glpi-entity-auto-updater)
-
-</div>
