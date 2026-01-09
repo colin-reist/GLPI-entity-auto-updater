@@ -12,12 +12,12 @@ if (-not $isAdmin) {
 }
 
 # Configuration
-$ServiceName  = "GLPI_Ticket_Bot"
-$DisplayName  = "GLPI_Ticket_Bot"
-$Description  = "Surveille et corrige l'entité des tickets GLPI selon leur lieu."
-$ScriptPath   = Join-Path $PSScriptRoot "gestion-ticket.ps1"
+$ServiceName = "GLPI_Ticket_Bot"
+$DisplayName = "GLPI_Ticket_Bot"
+$Description = "Surveille et corrige l'entité des tickets GLPI selon leur lieu."
+$ScriptPath = Join-Path $PSScriptRoot "gestion-ticket.ps1"
 $LogDirectory = Join-Path $PSScriptRoot "logs"
-$NssmPath     = "C:\Tools\nssm.exe"
+$NssmPath = "C:\Tools\nssm.exe"
 
 # Vérifier que le script existe
 if (-not (Test-Path $ScriptPath)) {
@@ -62,7 +62,7 @@ if ($existingService) {
         pause
         exit 0
     }
-}  # <-- IMPORTANT : fermeture du if ($existingService)
+}
 
 # Installation du service
 Write-Host ""
@@ -104,8 +104,6 @@ $stderrLog = Join-Path $LogDirectory "service-error.log"
 & $NssmPath set $ServiceName AppStopMethodConsole 1500 | Out-Null
 & $NssmPath set $ServiceName AppStopMethodWindow 1500 | Out-Null
 & $NssmPath set $ServiceName AppStopMethodThreads 1500 | Out-Null
-
-# IMPORTANT : ton NSSM ne supporte pas AppKillProcessTree -> on ne le met pas
 
 Write-Host "✓ Service installé avec succès" -ForegroundColor Green
 
