@@ -1,10 +1,33 @@
 ﻿# ========================
 # CONFIGURATION
 # ========================
-$Base = "https://glpi.com/apirest.php"
-$App = "TOKEN_APP"
-$User = "TOKEN_USER"
-# ========================
+# Chargement de la configuration depuis .env
+$envFile = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envFile) {
+  Get-Content $envFile | ForEach-Object {
+    if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$') {
+      $key = $matches[1]
+      $val = $matches[2]
+      # Nettoyage des quotes éventuelles
+      if ($val -match '^"(.*)"$') { $val = $matches[1] }
+      elseif ($val -match "^'(.*)'$") { $val = $matches[1] }
+      [Environment]::SetEnvironmentVariable($key, $val, "Process")
+    }
+  }
+}
+else {
+  Write-Host "ERREUR CRITIQUE: Fichier .env manquant !"
+  exit 1
+}
+
+$Base = $env:GLPI_URL
+$App = $env:GLPI_APP_TOKEN
+$User = $env:GLPI_USER_TOKEN
+
+if (-not $Base -or -not $App -or -not $User) {
+  Write-Host "ERREUR: Configuration incomplète dans le .env"
+  exit 1
+}
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 

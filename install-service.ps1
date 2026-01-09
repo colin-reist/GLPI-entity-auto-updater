@@ -13,7 +13,7 @@ if (-not $isAdmin) {
 
 # Configuration
 $ServiceName  = "GLPI_Ticket_Bot"
-$DisplayName  = "Bot GLPI Ticket Fix"
+$DisplayName  = "GLPI_Ticket_Bot"
 $Description  = "Surveille et corrige l'entité des tickets GLPI selon leur lieu."
 $ScriptPath   = Join-Path $PSScriptRoot "gestion-ticket.ps1"
 $LogDirectory = Join-Path $PSScriptRoot "logs"

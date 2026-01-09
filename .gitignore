@@ -4,3 +4,6 @@ logs/
 
 # Windows Service files (generated)
 nssm.exe
+
+# Secrets
+.env
