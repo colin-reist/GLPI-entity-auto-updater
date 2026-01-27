@@ -118,6 +118,8 @@ try {
         Write-LogMsg "DEBUG: $($json.data.Count) ticket(s) récupéré(s) - IDs: $($ticketIds -join ', ')"
 
         foreach ($row in $json.data) {
+          Write-LogMsg "=========================================="
+
           # ID du ticket (champ "2" dans les searchOptions par défaut)
           $ticketId = $row."2"
 
@@ -129,47 +131,99 @@ try {
 
           $t = $ticketResp.Content | ConvertFrom-Json
 
-          Write-LogMsg "DEBUG: Ticket #$($t.id) - Lieu: $($t.locations_id) - Entité: $($t.entities_id)"
+          Write-LogMsg "DEBUG: Ticket #$($t.id) '$($t.name)' - Lieu: $($t.locations_id) - Entité: $($t.entities_id)"
 
           # Vérifier si on doit agir
           # Condition : A un lieu ET Lieu != 0
           if ($t.locations_id -and $t.locations_id -ne 0) {
 
-            # Récupérer l'entité attendue pour ce lieu
+            # Récupérer le lieu pour obtenir son nom
             $locResp = Invoke-WebRequest -Uri "$Base/Location/$($t.locations_id)" -Method GET -Headers @{
               "Session-Token" = $session
               "App-Token"     = $App
             } -UseBasicParsing
             $loc = $locResp.Content | ConvertFrom-Json
-            $targetEntId = [int]$loc.entities_id
+            $locationName = $loc.name
 
-            Write-LogMsg "DEBUG: Ticket #$($t.id) - Entité actuelle: $($t.entities_id) - Entité cible: $targetEntId"
+            Write-LogMsg "DEBUG: Ticket #$($t.id) '$($t.name)' - Lieu: '$locationName' (ID: $($t.locations_id))"
 
-            # Si l'entité actuelle est différente de l'entité du lieu -> CORRECTION
-            if ([int]$t.entities_id -ne $targetEntId) {
-              Write-LogMsg "Ticket #$($t.id) : Entité actuelle $($t.entities_id) != Cible $targetEntId. Correction..."
+            # Encoder le nom du lieu pour l'URL
+            $encodedLocationName = [System.Uri]::EscapeDataString($locationName)
 
-              $payload = @{
-                input = @{
-                  id          = $t.id
-                  entities_id = $targetEntId
+            # Chercher l'entité qui porte le même nom que le lieu
+            $entitiesResp = Invoke-WebRequest -Uri "$Base/search/Entity?criteria[0][field]=1&criteria[0][searchtype]=contains&criteria[0][value]=$encodedLocationName&forcedisplay[0]=2&forcedisplay[1]=1" -Method GET -Headers @{
+              "Session-Token" = $session
+              "App-Token"     = $App
+            } -UseBasicParsing
+            $entitiesJson = $entitiesResp.Content | ConvertFrom-Json
+
+            Write-LogMsg "DEBUG: Recherche d'entité pour '$locationName' - Nombre de résultats: $($entitiesJson.data.Count)"
+
+            # Filtrer pour trouver une correspondance exacte (case-insensitive)
+            # Le nom de l'entité peut contenir le chemin complet : "Entité racine > CEJEF > DIVART"
+            # On extrait le dernier segment pour comparer
+            $matchingEntity = $null
+            if ($entitiesJson.data -and $entitiesJson.data.Count -gt 0) {
+              foreach ($entity in $entitiesJson.data) {
+                $entName = $entity."1"
+                # Extraire le dernier segment après le dernier " > "
+                $lastSegment = $entName
+                if ($entName -match '.*>\s*(.+)$') {
+                  $lastSegment = $matches[1].Trim()
                 }
-              } | ConvertTo-Json -Depth 5
 
-              Invoke-WebRequest -Uri "$Base/Ticket/$($t.id)" -Method PUT -Headers @{
-                "Session-Token" = $session
-                "App-Token"     = $App
-                "Content-Type"  = "application/json"
-              } -Body $payload -UseBasicParsing | Out-Null
+                Write-LogMsg "DEBUG: Comparaison - Lieu: '$locationName' vs Entité: '$lastSegment' (chemin complet: '$entName')"
 
-              Write-LogMsg "Ticket #$($t.id) : Déplacé vers entité $targetEntId."
+                if ($lastSegment -eq $locationName) {
+                  $matchingEntity = $entity
+                  Write-LogMsg "DEBUG: Correspondance exacte trouvée: '$entName' (ID: $($entity.'2'))"
+                  break
+                }
+              }
+            }
+
+            if ($matchingEntity) {
+              # Prendre l'entité trouvée (champ "2" = ID de l'entité)
+              $targetEntId = [int]$matchingEntity."2"
+              $targetEntName = $matchingEntity."1"
+
+              Write-LogMsg "DEBUG: Ticket #$($t.id) '$($t.name)' - Entité actuelle: $($t.entities_id) - Entité cible: $targetEntId ('$targetEntName')"
+
+              # Si l'entité actuelle est différente de l'entité trouvée -> CORRECTION
+              if ([int]$t.entities_id -ne $targetEntId) {
+                Write-LogMsg "Ticket #$($t.id) '$($t.name)' : Entité actuelle $($t.entities_id) != Cible $targetEntId ('$targetEntName'). Correction..."
+
+                $payload = @{
+                  input = @{
+                    id          = $t.id
+                    entities_id = $targetEntId
+                  }
+                } | ConvertTo-Json -Depth 5
+
+                Invoke-WebRequest -Uri "$Base/Ticket/$($t.id)" -Method PUT -Headers @{
+                  "Session-Token" = $session
+                  "App-Token"     = $App
+                  "Content-Type"  = "application/json"
+                } -Body $payload -UseBasicParsing | Out-Null
+
+                Write-LogMsg "Ticket #$($t.id) '$($t.name)' : Déplacé vers entité $targetEntId ('$targetEntName')."
+              }
+              else {
+                Write-LogMsg "DEBUG: Ticket #$($t.id) '$($t.name)' - Entité déjà correcte, aucune action nécessaire"
+              }
             }
             else {
-              Write-LogMsg "DEBUG: Ticket #$($t.id) - Entité déjà correcte, aucune action nécessaire"
+              Write-LogMsg "AVERTISSEMENT: Ticket #$($t.id) '$($t.name)' - Aucune entité trouvée avec le nom exact '$locationName'"
+              if ($entitiesJson.data -and $entitiesJson.data.Count -gt 0) {
+                Write-LogMsg "DEBUG: Entités trouvées (correspondances partielles):"
+                foreach ($entity in $entitiesJson.data) {
+                  Write-LogMsg "  - '$($entity.'1')' (ID: $($entity.'2'))"
+                }
+              }
             }
           }
           else {
-            Write-LogMsg "DEBUG: Ticket #$($t.id) - Ignoré (pas de lieu ou lieu = 0)"
+            Write-LogMsg "DEBUG: Ticket #$($t.id) '$($t.name)' - Ignoré (pas de lieu ou lieu = 0)"
           }
         }
       }
