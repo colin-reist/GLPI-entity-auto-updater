@@ -105,30 +105,34 @@ try {
         "App-Token"     = $App
       } -UseBasicParsing
 
-      # Vérifier le code de statut
-      if ($resp.StatusCode -ne 200) {
+      # Vérifier le code de statut (200 OK ou 206 Partial Content sont valides)
+      if ($resp.StatusCode -ne 200 -and $resp.StatusCode -ne 206) {
         Write-LogMsg "AVERTISSEMENT: Code HTTP $($resp.StatusCode) reçu lors de la récupération des tickets"
       }
 
       $json = $resp.Content | ConvertFrom-Json
-      
+
+      Write-LogMsg "DEBUG: $($json.data.Count) ticket(s) récupéré(s)"
+
       if ($json.data.Count -gt 0) {
         foreach ($row in $json.data) {
           # ID du ticket (champ "2" dans les searchOptions par défaut)
           $ticketId = $row."2"
-                
+
           # Détails du ticket
           $ticketResp = Invoke-WebRequest -Uri "$Base/Ticket/$ticketId" -Method GET -Headers @{
             "Session-Token" = $session
             "App-Token"     = $App
           } -UseBasicParsing
-                
+
           $t = $ticketResp.Content | ConvertFrom-Json
-                
+
+          Write-LogMsg "DEBUG: Ticket #$($t.id) - Lieu: $($t.locations_id) - Entité: $($t.entities_id)"
+
           # Vérifier si on doit agir
           # Condition : A un lieu ET Lieu != 0
           if ($t.locations_id -and $t.locations_id -ne 0) {
-                    
+
             # Récupérer l'entité attendue pour ce lieu
             $locResp = Invoke-WebRequest -Uri "$Base/Location/$($t.locations_id)" -Method GET -Headers @{
               "Session-Token" = $session
@@ -136,6 +140,8 @@ try {
             } -UseBasicParsing
             $loc = $locResp.Content | ConvertFrom-Json
             $targetEntId = [int]$loc.entities_id
+
+            Write-LogMsg "DEBUG: Ticket #$($t.id) - Entité actuelle: $($t.entities_id) - Entité cible: $targetEntId"
 
             # Si l'entité actuelle est différente de l'entité du lieu -> CORRECTION
             if ([int]$t.entities_id -ne $targetEntId) {
@@ -153,9 +159,15 @@ try {
                 "App-Token"     = $App
                 "Content-Type"  = "application/json"
               } -Body $payload -UseBasicParsing | Out-Null
-                        
+
               Write-LogMsg "Ticket #$($t.id) : Déplacé vers entité $targetEntId."
             }
+            else {
+              Write-LogMsg "DEBUG: Ticket #$($t.id) - Entité déjà correcte, aucune action nécessaire"
+            }
+          }
+          else {
+            Write-LogMsg "DEBUG: Ticket #$($t.id) - Ignoré (pas de lieu ou lieu = 0)"
           }
         }
       }
