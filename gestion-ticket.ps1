@@ -112,9 +112,11 @@ try {
 
       $json = $resp.Content | ConvertFrom-Json
 
-      Write-LogMsg "DEBUG: $($json.data.Count) ticket(s) récupéré(s)"
-
       if ($json.data.Count -gt 0) {
+        # Afficher la liste des IDs récupérés
+        $ticketIds = $json.data | ForEach-Object { $_."2" }
+        Write-LogMsg "DEBUG: $($json.data.Count) ticket(s) récupéré(s) - IDs: $($ticketIds -join ', ')"
+
         foreach ($row in $json.data) {
           # ID du ticket (champ "2" dans les searchOptions par défaut)
           $ticketId = $row."2"
