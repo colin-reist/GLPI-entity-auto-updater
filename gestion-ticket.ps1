@@ -29,7 +29,35 @@ if (-not $Base -or -not $App -or -not $User) {
   exit 1
 }
 
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls13
+
+# Ignorer la validation du certificat SSL (pour certificats auto-signés)
+if (-not ([System.Management.Automation.PSTypeName]'ServerCertificateValidationCallback').Type) {
+  add-type @"
+    using System;
+    using System.Net;
+    using System.Net.Security;
+    using System.Security.Cryptography.X509Certificates;
+    public class ServerCertificateValidationCallback
+    {
+        public static void Ignore()
+        {
+            ServicePointManager.ServerCertificateValidationCallback +=
+                delegate
+                (
+                    Object obj,
+                    X509Certificate certificate,
+                    X509Chain chain,
+                    SslPolicyErrors errors
+                )
+                {
+                    return true;
+                };
+        }
+    }
+"@
+}
+[ServerCertificateValidationCallback]::Ignore()
 
 # Fonction de log simple avec Timestamp
 function Write-LogMsg($msg) {
@@ -76,7 +104,12 @@ try {
         "Session-Token" = $session
         "App-Token"     = $App
       } -UseBasicParsing
-            
+
+      # Vérifier le code de statut
+      if ($resp.StatusCode -ne 200) {
+        Write-LogMsg "AVERTISSEMENT: Code HTTP $($resp.StatusCode) reçu lors de la récupération des tickets"
+      }
+
       $json = $resp.Content | ConvertFrom-Json
       
       if ($json.data.Count -gt 0) {
@@ -128,7 +161,25 @@ try {
       }
     }
     catch {
-      Write-LogMsg "Erreur temporaire dans la boucle : $_"
+      $errMsg = $_.Exception.Message
+
+      # Vérifier si c'est une erreur HTTP avec code de statut
+      if ($_.Exception.Response) {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        $statusDesc = $_.Exception.Response.StatusDescription
+
+        Write-LogMsg "Erreur HTTP $statusCode ($statusDesc) : $errMsg"
+
+        # Erreurs d'autorisation - session peut-être expirée
+        if ($statusCode -eq 401 -or $statusCode -eq 403) {
+          Write-LogMsg "ERREUR CRITIQUE: Problème d'autorisation détecté. La session pourrait être expirée."
+          Write-LogMsg "Arrêt du script pour éviter les erreurs en cascade."
+          throw "Session expirée ou accès refusé"
+        }
+      }
+      else {
+        Write-LogMsg "Erreur temporaire dans la boucle : $errMsg"
+      }
     }
 
     # Pause de 5 secondes
